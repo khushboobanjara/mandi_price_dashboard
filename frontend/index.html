@@ -1,12 +1,158 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rajasthan Mandi Price Dashboard</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Rajasthan Mandi Price Dashboard</title>
+  <meta name="description" content="Daily Wheat and Mustard mandi prices across Rajasthan: trends, market comparison and exports.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/static/css/style.css?v=__ASSET_V__">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to dashboard</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">🌾</span>
+        <div>
+          <h1>Rajasthan Mandi Prices</h1>
+          <p class="muted">Wheat &amp; Mustard · ₹ per quintal · Source: Agmarknet via api.dharun.dev</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost icon-btn" id="themeBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">🌓</button>
+        <button class="btn" id="exportBtn" type="button">⬇ Export CSV</button>
+        <button class="btn primary" id="refreshBtn" type="button">⟳ Refresh data</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <!-- Freshness / health strip -->
+    <section class="status-strip card" aria-label="Data freshness and system status">
+      <span class="badge" id="freshBadge">Checking…</span>
+      <div class="status-items" id="statusItems"></div>
+      <div class="sys" id="sysStatus" aria-live="polite"></div>
+    </section>
+    <div id="banners" aria-live="polite"></div>
+
+    <!-- Filters -->
+    <section class="card filters" aria-label="Filters">
+      <label>Commodity
+        <select id="fCommodity"><option>Wheat</option><option>Mustard</option></select>
+      </label>
+      <label>District
+        <select id="fDistrict"><option value="">All districts</option></select>
+      </label>
+      <label>Market
+        <select id="fMarket"><option value="">All markets</option></select>
+      </label>
+      <label>From <input type="date" id="fFrom"></label>
+      <label>To <input type="date" id="fTo"></label>
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+      <div class="chips" id="chips" aria-label="Active filters"></div>
+    </section>
+
+    <!-- KPI cards -->
+    <section aria-label="Key indicators">
+      <div class="kpis" id="kpis"></div>
+      <div id="kpiNote" class="muted small"></div>
+    </section>
+
+    <!-- Charts -->
+    <div class="grid-2">
+      <section class="card panel" id="trendPanel" aria-labelledby="trendTitle">
+        <div class="card-head">
+          <h2 id="trendTitle">Price trend</h2>
+          <div class="seg" role="group" aria-label="Trend grouping" id="trendGroup">
+            <button type="button" data-v="none" class="active">Overall</button>
+            <button type="button" data-v="market">Top markets</button>
+            <button type="button" data-v="district">Top districts</button>
+          </div>
+        </div>
+        <label class="inline small" id="rangeToggleWrap"><input type="checkbox" id="trendRange" checked> Show lowest min / highest max</label>
+        <div class="panel-msg" data-role="msg"></div>
+        <div class="chart-box"><canvas id="trendChart" role="img" aria-label="Price trend line chart"></canvas></div>
+        <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+      </section>
+
+      <section class="card panel" id="comparePanel" aria-labelledby="compareTitle">
+        <div class="card-head">
+          <h2 id="compareTitle">Market comparison</h2>
+          <div class="controls">
+            <input type="date" id="cDate" title="Leave empty for the latest date" aria-label="Comparison date">
+            <select id="cLimit" aria-label="How many rows">
+              <option value="10">Top 10</option><option value="15" selected>Top 15</option><option value="30">Top 30</option>
+            </select>
+          </div>
+        </div>
+        <div class="controls wrap-row">
+          <div class="seg" role="group" aria-label="Comparison level" id="cLevel">
+            <button type="button" data-v="market" class="active">Markets</button>
+            <button type="button" data-v="district">Districts</button>
+          </div>
+          <div class="seg" role="group" aria-label="Comparison view" id="cView">
+            <button type="button" data-v="modal" class="active">Modal price</button>
+            <button type="button" data-v="range">Min–Max range</button>
+          </div>
+        </div>
+        <p class="muted small" id="cSub"></p>
+        <div class="panel-msg" data-role="msg"></div>
+        <div class="chart-box tall"><canvas id="compareChart" role="img" aria-label="Market comparison bar chart"></canvas></div>
+        <p class="muted small" id="cHint">Click a bar to filter the dashboard to that market or district.</p>
+        <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+      </section>
+    </div>
+
+    <!-- Table -->
+    <section class="card panel" id="tablePanel" aria-labelledby="tableTitle">
+      <div class="card-head">
+        <h2 id="tableTitle">Price records</h2>
+        <div class="controls">
+          <span class="muted" id="tCount"></span>
+          <label class="inline small">Rows
+            <select id="tSize"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+          </label>
+        </div>
+      </div>
+      <div class="panel-msg" data-role="msg"></div>
+      <div class="table-wrap">
+        <table id="pricesTable">
+          <caption class="sr-only">Mandi price records. Click a column heading to sort.</caption>
+          <thead><tr id="tHead"></tr></thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="pager"></div>
+      <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+    </section>
+
+    <!-- Fetch history -->
+    <details class="card" id="logsBox">
+      <summary>Data pipeline history (last 10 refreshes)</summary>
+      <div class="panel-msg" data-role="msg"></div>
+      <div class="table-wrap"><table id="logsTable"><thead><tr>
+        <th>Started (local)</th><th>Trigger</th><th>Status</th><th class="num">Fetched</th>
+        <th class="num">New</th><th class="num">Updated</th><th class="num">Rejected</th><th>Notes</th>
+      </tr></thead><tbody id="logsBody"></tbody></table></div>
+    </details>
+
+    <footer class="muted small">
+      Percentage changes compare only markets that reported on both dates. Data refreshes automatically every 3 hours;
+      availability and freshness depend on the upstream provider.
+    </footer>
+  </main>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <script src="/static/vendor/chart.umd.js?v=4.4.7"></script>
+  <script src="/static/js/utils.js?v=__ASSET_V__"></script>
+  <script src="/static/js/api.js?v=__ASSET_V__"></script>
+  <script src="/static/js/charts.js?v=__ASSET_V__"></script>
+  <script src="/static/js/panels.js?v=__ASSET_V__"></script>
+  <script src="/static/js/app.js?v=__ASSET_V__"></script>
+  <noscript><p class="wrap">This dashboard needs JavaScript enabled.</p></noscript>
+</body>
 </html>

@@ -52,41 +52,22 @@ Data availability and freshness depend on the API provider.
 
 ## Project Architecture
 
-```text
-data_finding/
-│
-├── app/
-│   ├── main.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   │
-│   ├── routes/
-│   │
-│   ├── services/
-│   │
-│   └── scheduler.py
-│
-├── frontend/
-│   ├── index.html
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   └── dashboard.js
-│   └── assets/
-│
-├── tests/
-│
-├── data/
-├── output/
-├── .env
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── README.md
 ```
-
-*Adjust the structure above to match the actual files in your project.*
+mandi_price_dashboard/
+├── app/
+│   ├── main.py            # FastAPI app, health checks, middleware, serves the frontend
+│   ├── config.py, database.py, models.py, scheduler.py
+│   ├── routes/dashboard.py     # /api/filters, kpis, trends, markets/compare, prices, export/csv, freshness
+│   └── services/               # api_client, ingest, validation, analytics, queries
+├── frontend/                   # plain HTML + CSS + vanilla JS + Chart.js (no build step)
+│   ├── index.html, favicon.svg
+│   ├── css/style.css
+│   ├── js/ utils.js, api.js, charts.js, panels.js, app.js
+│   └── vendor/chart.umd.js     # Chart.js 4.4.7, vendored (works offline)
+├── scripts/ init_db.py, import_csv.py, run_dev.ps1, run_prod.ps1
+├── sql/schema.sql
+└── tests/
+```
 
 ## Installation and Setup
 
@@ -130,10 +111,16 @@ DATABASE_URL=mysql+pymysql://YOUR_USERNAME:YOUR_PASSWORD@localhost:3306/rajastha
 
 Use your actual database credentials locally. Never commit `.env` to GitHub.
 
-### 6. Start the backend
+### 6. Start the server (API + dashboard together)
 
 ```powershell
-uvicorn app.main:app --reload --port 8000
+.\scripts\run_dev.ps1
+```
+
+or, without the helper script:
+
+```powershell
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Backend URL:
@@ -146,11 +133,11 @@ API documentation:
 
 ### 7. Open the dashboard
 
-If the frontend is served through FastAPI, open:
+The dashboard is served by FastAPI itself (no Node/Vite needed). Open:
 
 `http://localhost:8000`
 
-Otherwise, follow the frontend instructions in the project configuration.
+
 
 ## Dashboard Analytics
 
@@ -167,16 +154,18 @@ The dashboard is designed to provide:
 
 ## API Endpoints
 
-The following are example endpoint categories. Refer to `/docs` for the actual implemented routes.
-
 | Endpoint | Purpose |
-|---|---|
-| `/docs` | Interactive API documentation |
-| `/health` | Application health check |
-| `/api/prices` | Retrieve mandi price records |
-| `/api/analytics` | Retrieve price analytics |
-| `/api/refresh` | Trigger manual data refresh |
-| `/api/export` | Export filtered records |
+| --- | --- |
+| `GET /` | The dashboard |
+| `GET /docs` | Interactive API docs (disable with `DOCS_ENABLED=false`) |
+| `GET /health` | Full status: database, scheduler, data freshness, version, uptime |
+| `GET /health/live` | Liveness probe (never touches MySQL) |
+| `GET /health/ready` | Readiness probe (503 if MySQL or scheduler is down) |
+| `GET /api/filters`, `/api/kpis`, `/api/trends`, `/api/markets/compare` | Dashboard analytics |
+| `GET /api/prices` | Sortable, paginated price records |
+| `GET /api/export/csv` | CSV export of the current filters |
+| `GET /api/freshness`, `/api/refresh/status`, `/api/fetch-logs` | Data freshness and refresh history |
+| `POST /api/refresh` | Manual refresh (409 if one is running, 429 during the cooldown) |
 
 ## Testing
 

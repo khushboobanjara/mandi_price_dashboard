@@ -29,7 +29,12 @@ class Settings(BaseSettings):
 
     refresh_interval_hours: int = 3
     target_state: str = "Rajasthan"
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:8000"
+
+    # Stage 5 (production)
+    app_env: str = "development"          # "production" enables long-lived static caching
+    docs_enabled: bool = True             # set DOCS_ENABLED=false to hide /docs and /redoc
+    manual_refresh_cooldown_seconds: int = 60  # protects the upstream API from button spam
 
     @property
     def sqlalchemy_url(self) -> str:
