@@ -1,0 +1,56 @@
+date,state,district,market,commodity,variety,grade,min_price,max_price,modal_price
+2026-11-26,Rajasthan,Baran,Anta APMC,Wheat,Other,Local,2800,2905,2852
+2026-11-26,Rajasthan,Baran,Baran APMC,Wheat,Other,Local,2755,3230,2946
+2026-11-26,Rajasthan,Baran,Galla Chhipabarod - Chhabra APMC,Wheat,Other,Local,2606,2881,2675
+2026-11-26,Rajasthan,Bundi,Bundi APMC,Wheat,Other,FAQ,2630,2900,2765
+2026-11-26,Rajasthan,Bundi,Keshoraipatan APMC,Wheat,Local,FAQ,2800,3000,2900
+2026-11-26,Rajasthan,Dausa,Mandawari APMC,Wheat,Other,Local,2750,2900,2850
+2026-11-26,Rajasthan,Ganganagar,Kesarisinghpur APMC,Wheat,Other,FAQ,2722,2722,2722
+2026-11-26,Rajasthan,Ganganagar,Sadulshahar APMC,Wheat,Other,FAQ,2571,2571,2571
+2026-11-26,Rajasthan,Jaipur,Bassi APMC,Wheat,Other,Local,2750,2950,2850
+2026-11-26,Rajasthan,Jhalawar,Iklera APMC,Wheat,Other,Local,2750,2950,2850
+2026-11-26,Rajasthan,Jhalawar,Jhalarapatan APMC,Wheat,Other,Local,2600,3000,2778
+2026-11-26,Rajasthan,Jhalawar,Khanpur APMC,Wheat,Other,FAQ,2450,3120,2899
+2026-11-26,Rajasthan,Jodhpur,Osiyan Mathania APMC,Wheat,Local,Local,2600,2950,2800
+2026-11-26,Rajasthan,Kota,Itawa APMC,Wheat,Other,Local,2710,3044,2877
+2026-11-26,Rajasthan,Kota,Khatauli APMC,Wheat,Wheat,Local,2800,2800,2800
+2026-11-26,Rajasthan,Kota,Ramganjmandi APMC,Wheat,Other,Local,2758,3199,2900
+2026-11-26,Rajasthan,Pratapgarh,Chhotisadri APMC,Wheat,Local,Local,2890,3151,2960
+2026-11-26,Rajasthan,Pratapgarh,Pratapgarh APMC,Wheat,Other,FAQ,2715,3150,3070
+2026-11-26,Rajasthan,Swai Madhopur,Gangapur City APMC,Wheat,Other,Non-FAQ,2740,2811,2741
+2026-11-26,Rajasthan,Tonk,Dooni APMC,Wheat,147 Average,Local,2675,2772,2724
+2026-11-26,Rajasthan,Tonk,Malpura APMC,Wheat,Other,FAQ,2700,2787,2750
+2026-11-26,Rajasthan,Tonk,Todaraisingh APMC,Wheat,Other,FAQ,2800,2814,2807
+2026-11-26,Rajasthan,Tonk,Uniyara APMC,Wheat,Other,FAQ,2696,2791,2743
+2026-11-26,Rajasthan,Udaipur,Fatehnagar APMC,Wheat,Local,FAQ,2800,3200,3000
+2026-11-26,Rajasthan,Alwar,Govindgarh APMC,Mustard,Big 100 Kg,FAQ,10000,10200,10100
+2026-11-26,Rajasthan,Baran,Baran APMC,Mustard,Other,Local,8650,9900,9376
+2026-11-26,Rajasthan,Baran,Galla Chhipabarod - Chhabra APMC,Mustard,Sarson(Black),Local,8155,9260,8700
+2026-11-26,Rajasthan,Bharatpur,Bhusawar Bair APMC,Mustard,Other,Local,9550,9700,9630
+2026-11-26,Rajasthan,Bundi,Bundi APMC,Mustard,Other,FAQ,8651,8651,8651
+2026-11-26,Rajasthan,Bundi,Keshoraipatan APMC,Mustard,Mustard,FAQ,9000,9200,9100
+2026-11-26,Rajasthan,Dausa,Mandawari APMC,Mustard,Other,Local,9905,10495,10245
+2026-11-26,Rajasthan,Deeg,Nagar APMC,Mustard,Mustard,Non-FAQ,10250,10600,10405
+2026-11-26,Rajasthan,Deeg,Sikri APMC,Mustard,Mustard,Non-FAQ,8100,9900,9100
+2026-11-26,Rajasthan,Ganganagar,Gajsinghpur APMC,Mustard,Other,Local,8900,9819,9422
+2026-11-26,Rajasthan,Ganganagar,Gharsana APMC,Mustard,Mustard,FAQ,7676,9184,9100
+2026-11-26,Rajasthan,Ganganagar,Kesarisinghpur APMC,Mustard,Mustard,FAQ,9459,9459,9459
+2026-11-26,Rajasthan,Ganganagar,Padampur APMC,Mustard,Other,FAQ,9350,9438,9438
+2026-11-26,Rajasthan,Ganganagar,Rawla APMC,Mustard,Mustard,FAQ,9120,9680,9400
+2026-11-26,Rajasthan,Ganganagar,Sri Karanpur APMC,Mustard,Mustard,FAQ,9135,9135,9135
+2026-11-26,Rajasthan,Jaipur,Bassi APMC,Mustard,Other,Local,9701,10280,9990
+2026-11-26,Rajasthan,Jhalawar,Iklera APMC,Mustard,Other,Local,7800,9200,8500
+2026-11-26,Rajasthan,Jhalawar,Jhalarapatan APMC,Mustard,Other,Local,8400,9600,9218
+2026-11-26,Rajasthan,Jhalawar,Khanpur APMC,Mustard,Mustard,FAQ,8000,9824,9599
+2026-11-26,Rajasthan,Jodhpur,Jodhpur (Grain) APMC,Mustard,Other,Local,7000,7620,7310
+2026-11-26,Rajasthan,Jodhpur,Osiyan Mathania APMC,Mustard,Other,Local,9000,9500,9300
+2026-11-26,Rajasthan,Kota,Itawa APMC,Mustard,Mustard,Local,9145,9800,9472
+2026-11-26,Rajasthan,Kota,Khatauli APMC,Mustard,Mustard,Local,9430,9430,9430
+2026-11-26,Rajasthan,Kota,Ramganjmandi APMC,Mustard,Other,Local,8001,9451,8511
+2026-11-26,Rajasthan,Pratapgarh,Pratapgarh APMC,Mustard,Other,FAQ,8799,8900,8850
+2026-11-26,Rajasthan,Swai Madhopur,Gangapur City APMC,Mustard,Other,Non-FAQ,9146,9884,9379
+2026-11-26,Rajasthan,Tonk,Dooni APMC,Mustard,Mustard-Organic,Local,9400,9690,9545
+2026-11-26,Rajasthan,Tonk,Malpura APMC,Mustard,Other,FAQ,9000,9960,9500
+2026-11-26,Rajasthan,Tonk,Todaraisingh APMC,Mustard,Other,FAQ,10000,10200,10100
+2026-11-26,Rajasthan,Tonk,Uniyara APMC,Mustard,Other,FAQ,8931,9200,9065
+2026-11-26,Rajasthan,Udaipur,Fatehnagar APMC,Mustard,Mustard,FAQ,8450,8450,8450
