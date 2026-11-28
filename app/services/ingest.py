@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
+from ..commodities import BY_NAME, COMMODITY_NAMES
 from ..config import settings
 from ..database import SessionLocal
 from ..models import FetchLog, MandiPrice
@@ -16,7 +17,7 @@ from .validation import validate_record
 
 logger = logging.getLogger(__name__)
 
-COMMODITIES = ("Wheat", "Mustard")
+COMMODITIES = COMMODITY_NAMES  # Wheat, Mustard, Bajra, Soybean, Gram (see app/commodities.py)
 PRICE_FIELDS = ("min_price", "max_price", "modal_price")
 CHUNK = 500
 MAX_REJECT_SAMPLES = 5
@@ -87,6 +88,67 @@ def run_refresh(trigger: str = "manual", client: MandiApiClient | None = None,
         _refresh_lock.release()
 
 
+class _Collected:
+    """What one commodity contributed to a refresh."""
+
+    def __init__(self):
+        self.rows: dict[str, dict] = {}
+        self.fetched = 0
+        self.rejected = 0
+        self.samples: list[str] = []
+        self.notes: list[str] = []
+        self.api_failed = False      # every upstream name we tried errored out
+        self.unavailable = False     # the API answered, but had nothing for this commodity
+
+
+def _collect(client: MandiApiClient, commodity: str) -> _Collected:
+    """Fetch one commodity, trying each upstream spelling until one yields valid rows.
+
+    The upstream API is not documented to accept one fixed name per crop (e.g. "Soybean" vs
+    "Soyabean"), so we try the known spellings in order and keep the first that returns valid
+    Rajasthan rows for exactly this commodity.
+    """
+    out = _Collected()
+    last_error: ApiError | None = None
+    for api_name in BY_NAME[commodity].api_names:
+        try:
+            result = client.fetch(settings.target_state, api_name)
+        except ApiError as exc:
+            last_error = exc
+            logger.error("API failure for %s (as '%s'): %s", commodity, api_name, exc)
+            continue
+        out.notes.extend(result.warnings)
+        if not result.records:
+            continue
+        out.fetched += len(result.records)
+        got = 0
+        for raw in result.records:
+            row, reason = validate_record(raw, expected_state=settings.target_state,
+                                          expected_commodity=commodity)
+            if row is None:
+                out.rejected += 1
+                if len(out.samples) < MAX_REJECT_SAMPLES:
+                    out.samples.append(f"{commodity}: {reason}")
+            else:
+                out.rows[row["record_hash"]] = row  # same key twice in one batch -> last wins
+                got += 1
+        if got:
+            return out
+        out.notes.append(f"{commodity}: '{api_name}' returned {len(result.records)} record(s) but none were valid")
+
+    if last_error is not None:
+        # At least one request failed and nothing usable came back from the others, so we cannot
+        # tell "no data" from "outage": report it as a failure rather than hiding it.
+        out.api_failed = True
+        out.notes.append(f"{commodity}: API failure - {last_error}")
+    elif out.fetched == 0:
+        out.unavailable = True
+        out.notes.append(f"{commodity}: no records published by the API right now")
+    else:
+        out.api_failed = True  # data arrived but all of it was unusable: worth a 'partial'
+    return out
+
+
 def _run(trigger: str, client: MandiApiClient, session_factory) -> dict:
     db = session_factory()
     log = FetchLog(trigger_source=trigger, status="running", started_at=utcnow())
@@ -101,29 +163,16 @@ def _run(trigger: str, client: MandiApiClient, session_factory) -> dict:
 
     try:
         for commodity in COMMODITIES:
-            try:
-                result = client.fetch(settings.target_state, commodity)
-            except ApiError as exc:
+            got = _collect(client, commodity)
+            notes.extend(got.notes)
+            fetched += got.fetched
+            rejected += got.rejected
+            rejected_samples.extend(got.samples[: max(0, MAX_REJECT_SAMPLES - len(rejected_samples))])
+            if got.api_failed:
                 failed_calls += 1
-                notes.append(f"{commodity}: API failure - {exc}")
-                logger.error("API failure for %s: %s", commodity, exc)
-                continue
-
-            notes.extend(result.warnings)
-            if not result.records:
-                failed_calls += 1  # an empty answer is treated as suspicious, not as success
-                notes.append(f"{commodity}: API returned no records")
-                continue
-
-            fetched += len(result.records)
-            for raw in result.records:
-                row, reason = validate_record(raw, expected_state=settings.target_state)
-                if row is None:
-                    rejected += 1
-                    if len(rejected_samples) < MAX_REJECT_SAMPLES:
-                        rejected_samples.append(f"{commodity}: {reason}")
-                else:
-                    valid[row["record_hash"]] = row  # same key twice in one batch -> last wins
+            valid.update(got.rows)
+            # An empty answer for a crop (off-season, no arrivals today) is normal for 5 crops:
+            # it is noted in the log but does not turn the whole refresh into a 'partial'.
 
         inserted = updated = 0
         if valid:

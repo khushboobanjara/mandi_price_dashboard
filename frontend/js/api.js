@@ -83,6 +83,21 @@
     return name;
   }
 
+  /** Download one of the CSV reports (commodity_summary, district_analysis, msp, history). */
+  async function downloadReport(kind, params) {
+    var p = Object.assign({}, params, { kind: kind });
+    var res = await attempt("GET", "/api/export/report" + qs(p), null, 60000);
+    if (!res.ok) throw ApiError((await readDetail(res)) || ("Report failed (" + res.status + ")"), res.status);
+    var blob = await res.blob();
+    var m = /filename="?([^";]+)"?/i.exec(res.headers.get("Content-Disposition") || "");
+    var name = m ? m[1] : "mandi_report_" + kind + ".csv";
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    return name;
+  }
+
   /** Each loader cancels its previous request, so fast filter changes never show stale data. */
   function createLoader() {
     var current = null;
@@ -97,6 +112,6 @@
   M.api = {
     get: function (path, params, opts) { return request("GET", path, params, opts); },
     post: function (path, opts) { return request("POST", path, null, opts); },
-    downloadCsv: downloadCsv, createLoader: createLoader, qs: qs,
+    downloadCsv: downloadCsv, downloadReport: downloadReport, createLoader: createLoader, qs: qs,
   };
 })(window);

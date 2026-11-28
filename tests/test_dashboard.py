@@ -56,9 +56,12 @@ def test_kpis_wheat_like_for_like(client):
     assert w["change_vs_week"]["pct_change"] == 13.08
 
 
-def test_kpis_without_commodity_returns_both_and_freshness(client):
+def test_kpis_without_commodity_returns_all_five_and_freshness(client):
     body = client.get("/api/kpis").json()
-    assert set(body["commodities"]) == {"Wheat", "Mustard"}
+    assert list(body["commodities"]) == ["Wheat", "Mustard", "Bajra", "Soybean", "Gram"]
+    # commodities with no stored data are reported as unavailable, not omitted or faked
+    for name in ("Bajra", "Soybean", "Gram"):
+        assert body["commodities"][name] == {"has_data": False}
     m = body["commodities"]["Mustard"]
     assert m["previous_date"] is None and m["change_vs_previous"]["pct_change"] is None
     assert body["freshness"]["latest_price_date"] == "2026-11-27"

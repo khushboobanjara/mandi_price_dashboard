@@ -13,19 +13,20 @@ from ..scheduler import next_run_time
 from ..services import queries
 from ..services.queries import Filters
 from ..services.validation import ALLOWED_COMMODITIES
+from ..commodities import normalize_commodity
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
 def get_filters(
-    commodity: str | None = Query(None, description="Wheat or Mustard"),
+    commodity: str | None = Query(None, description="Wheat, Mustard, Bajra, Soybean or Gram"),
     district: str | None = Query(None),
     market: str | None = Query(None),
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
 ) -> Filters:
     if commodity:
-        norm = ALLOWED_COMMODITIES.get(commodity.strip().casefold())
+        norm = normalize_commodity(commodity)
         if not norm:
             raise HTTPException(422, f"commodity must be one of {sorted(ALLOWED_COMMODITIES.values())}")
         commodity = norm
@@ -37,7 +38,8 @@ def get_filters(
 
 def require_commodity(f: Filters = Depends(get_filters)) -> Filters:
     if not f.commodity:
-        raise HTTPException(422, "commodity is required (Wheat or Mustard); prices of different commodities must not be mixed")
+        raise HTTPException(422, f"commodity is required (one of {sorted(ALLOWED_COMMODITIES.values())}); "
+                                 "prices of different commodities must not be mixed")
     return f
 
 
@@ -100,6 +102,81 @@ def export_csv(f: Filters = Depends(get_filters), db: Session = Depends(get_db))
     writer.writeheader()
     writer.writerows(rows)
     name = f"mandi_prices_{(f.commodity or 'all').lower()}_{datetime.now():%Y%m%d_%H%M}.csv"
+    return Response(
+        content=buf.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+# ------------------------------------------------------- multi-commodity analytics
+@router.get("/commodities")
+def commodities(f: Filters = Depends(get_filters), db: Session = Depends(get_db)):
+    """All five supported commodities with data availability (so the UI can grey out empty ones)."""
+    return {"commodities": queries.commodity_availability(db, f)}
+
+
+@router.get("/compare/commodities")
+def compare_commodities(
+    on: date | None = Query(None, alias="date", description="Exact date; default = each commodity's latest"),
+    f: Filters = Depends(get_filters), db: Session = Depends(get_db),
+):
+    """Side-by-side latest prices, change and MSP position of every commodity.
+    The `commodity` filter is ignored here on purpose; district/market/date filters apply."""
+    return queries.commodity_comparison(db, f, on)
+
+
+@router.get("/compare/trends")
+def compare_trends(f: Filters = Depends(get_filters), db: Session = Depends(get_db)):
+    """Historical daily average modal price per commodity (with base-100 index and MSP)."""
+    return queries.commodity_trends(db, f)
+
+
+@router.get("/districts/analysis")
+def districts_analysis(
+    on: date | None = Query(None, alias="date"),
+    limit: int = Query(60, ge=1, le=200),
+    f: Filters = Depends(require_commodity), db: Session = Depends(get_db),
+):
+    return queries.district_analysis(db, f, on, limit)
+
+
+@router.get("/districts/matrix")
+def districts_matrix(f: Filters = Depends(get_filters), db: Session = Depends(get_db)):
+    return queries.district_matrix(db, f)
+
+
+@router.get("/msp")
+def msp(on: date | None = Query(None, alias="date"),
+        f: Filters = Depends(get_filters), db: Session = Depends(get_db)):
+    """Latest price vs MSP for every commodity, plus the MSP rate table."""
+    return queries.msp_overview(db, f, on)
+
+
+@router.get("/msp/breakdown")
+def msp_breakdown(
+    level: Literal["market", "district"] = "market",
+    on: date | None = Query(None, alias="date"),
+    limit: int = Query(100, ge=1, le=500),
+    f: Filters = Depends(require_commodity), db: Session = Depends(get_db),
+):
+    return queries.msp_breakdown(db, f, level, on, limit)
+
+
+@router.get("/export/report")
+def export_report(
+    kind: Literal["commodity_summary", "district_analysis", "msp", "history"] = "commodity_summary",
+    on: date | None = Query(None, alias="date"),
+    f: Filters = Depends(get_filters), db: Session = Depends(get_db),
+):
+    """CSV reports: commodity summary, district analysis, MSP comparison, price history."""
+    columns, rows = queries.report_rows(db, f, kind, on)
+    buf = io.StringIO()
+    buf.write("\ufeff")
+    writer = csv.DictWriter(buf, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({k: ("" if v is None else v) for k, v in row.items()})
+    name = f"mandi_report_{kind}_{(f.commodity or 'all').lower()}_{datetime.now():%Y%m%d_%H%M}.csv"
     return Response(
         content=buf.getvalue(), media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{name}"'},

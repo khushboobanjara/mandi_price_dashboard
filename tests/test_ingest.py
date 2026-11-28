@@ -16,9 +16,12 @@ def rec(market="Anta APMC", commodity="Wheat", modal=2852, date="2026-11-26", **
 class FakeClient:
     def __init__(self, data):
         self.data = data  # commodity -> list | Exception
+        self.calls = []
 
     def fetch(self, state, commodity):
-        item = self.data[commodity]
+        self.calls.append(commodity)
+        # A commodity the fake knows nothing about = the API answered with no records.
+        item = self.data.get(commodity, [])
         if isinstance(item, Exception):
             raise item
         return FetchResult(records=list(item))

@@ -47,3 +47,19 @@ CREATE TABLE IF NOT EXISTS fetch_logs (
   KEY ix_fetch_started (started_at),
   KEY ix_fetch_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Government Minimum Support Prices (Rs/quintal) per commodity and marketing season.
+-- Seeded automatically by the app / scripts/init_db.py; add a row when a new MSP is announced.
+CREATE TABLE IF NOT EXISTS msp_rates (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  commodity     VARCHAR(100) NOT NULL,
+  season        VARCHAR(20)  NOT NULL COMMENT 'e.g. RMS 2026-27 (rabi) or KMS 2026-27 (kharif)',
+  applies_from  DATE         NOT NULL,
+  applies_to    DATE         NOT NULL,
+  msp           DECIMAL(10,2) NOT NULL,
+  source        VARCHAR(300) NOT NULL DEFAULT '',
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_msp_commodity_season (commodity, season),
+  KEY ix_msp_commodity_from (commodity, applies_from)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

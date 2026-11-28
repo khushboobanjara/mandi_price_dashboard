@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Rajasthan Mandi Price Dashboard</title>
-  <meta name="description" content="Daily Wheat and Mustard mandi prices across Rajasthan: trends, market comparison and exports.">
+  <meta name="description" content="Daily Wheat, Mustard, Bajra, Soybean and Gram (Chana) mandi prices across Rajasthan: trends, commodity and district comparison, MSP comparison and reports.">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/static/css/style.css?v=__ASSET_V__">
 </head>
@@ -18,11 +18,20 @@
         <span class="brand-mark" aria-hidden="true">🌾</span>
         <div>
           <h1>Rajasthan Mandi Prices</h1>
-          <p class="muted">Wheat &amp; Mustard · ₹ per quintal · Source: Agmarknet via api.dharun.dev</p>
+          <p class="muted">Wheat · Mustard · Bajra · Soybean · Gram (Chana) · Rajasthan · ₹ per quintal · Source: Agmarknet via api.dharun.dev</p>
         </div>
       </div>
       <div class="actions">
         <button class="btn ghost icon-btn" id="themeBtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">🌓</button>
+        <label class="report-pick"><span class="sr-only">Report type</span>
+          <select id="reportKind" aria-label="Report type">
+            <option value="commodity_summary">Report: commodity summary</option>
+            <option value="district_analysis">Report: district analysis</option>
+            <option value="msp">Report: MSP comparison</option>
+            <option value="history">Report: price history</option>
+          </select>
+        </label>
+        <button class="btn" id="reportBtn" type="button">⬇ Report CSV</button>
         <button class="btn" id="exportBtn" type="button">⬇ Export CSV</button>
         <button class="btn primary" id="refreshBtn" type="button">⟳ Refresh data</button>
       </div>
@@ -41,7 +50,10 @@
     <!-- Filters -->
     <section class="card filters" aria-label="Filters">
       <label>Commodity
-        <select id="fCommodity"><option>Wheat</option><option>Mustard</option></select>
+        <select id="fCommodity">
+          <option value="Wheat">Wheat</option><option value="Mustard">Mustard</option><option value="Bajra">Bajra</option>
+          <option value="Soybean">Soybean</option><option value="Gram">Gram (Chana)</option>
+        </select>
       </label>
       <label>District
         <select id="fDistrict"><option value="">All districts</option></select>
@@ -106,6 +118,86 @@
       </section>
     </div>
 
+    <!-- Commodity comparison -->
+    <section class="card panel" id="cmpPanel" aria-labelledby="cmpTitle">
+      <div class="card-head">
+        <h2 id="cmpTitle">Commodity comparison</h2>
+        <div class="controls">
+          <div class="seg" role="group" aria-label="Comparison view" id="cmpView">
+            <button type="button" data-v="latest" class="active">Latest prices</button>
+            <button type="button" data-v="price">History (₹)</button>
+            <button type="button" data-v="index">History (index)</button>
+          </div>
+          <label class="inline small" id="cmpMspWrap"><input type="checkbox" id="cmpMsp"> Show MSP lines</label>
+        </div>
+      </div>
+      <p class="muted small" id="cmpSub"></p>
+      <div class="panel-msg" data-role="msg"></div>
+      <div class="chart-box"><canvas id="cmpChart" role="img" aria-label="Commodity comparison chart"></canvas></div>
+      <div class="table-wrap cmp-table"><table id="cmpTable">
+        <caption class="sr-only">Latest price of each commodity. Click a row to select that commodity.</caption>
+        <thead><tr><th>Commodity</th><th>Date</th><th class="num">Avg modal</th><th class="num">Min</th><th class="num">Max</th>
+          <th class="num">vs previous</th><th class="num">MSP</th><th class="num">vs MSP</th><th class="num">Markets</th></tr></thead>
+        <tbody id="cmpBody"></tbody></table></div>
+      <p class="muted small" id="cmpNote"></p>
+      <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+    </section>
+
+    <!-- MSP comparison -->
+    <div class="grid-2">
+      <section class="card panel" id="mspPanel" aria-labelledby="mspTitle">
+        <div class="card-head"><h2 id="mspTitle">MSP comparison</h2></div>
+        <p class="muted small" id="mspSub"></p>
+        <div class="panel-msg" data-role="msg"></div>
+        <div class="chart-box"><canvas id="mspChart" role="img" aria-label="Average modal price versus MSP for each commodity"></canvas></div>
+        <p class="muted small" id="mspNote"></p>
+        <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+      </section>
+
+      <section class="card panel" id="mspBreakPanel" aria-labelledby="mspBreakTitle">
+        <div class="card-head">
+          <h2 id="mspBreakTitle">Below / above MSP</h2>
+          <div class="seg" role="group" aria-label="MSP breakdown level" id="mspLevel">
+            <button type="button" data-v="market" class="active">Markets</button>
+            <button type="button" data-v="district">Districts</button>
+          </div>
+        </div>
+        <p class="muted small" id="mspBreakSub"></p>
+        <div class="panel-msg" data-role="msg"></div>
+        <div class="table-wrap short"><table id="mspBreakTable">
+          <thead><tr><th>Market / district</th><th class="num">Avg modal</th><th class="num">MSP</th><th class="num">Gap</th><th class="num">vs MSP</th></tr></thead>
+          <tbody id="mspBreakBody"></tbody></table></div>
+        <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+      </section>
+    </div>
+
+    <!-- District analysis -->
+    <section class="card panel" id="distPanel" aria-labelledby="distTitle">
+      <div class="card-head">
+        <h2 id="distTitle">District-wise analysis</h2>
+        <div class="seg" role="group" aria-label="District view" id="distView">
+          <button type="button" data-v="selected" class="active">Selected commodity</button>
+          <button type="button" data-v="matrix">All commodities</button>
+        </div>
+      </div>
+      <p class="muted small" id="distSub"></p>
+      <div class="panel-msg" data-role="msg"></div>
+      <div id="distSelected">
+        <div class="chart-box tall"><canvas id="distChart" role="img" aria-label="District comparison bar chart"></canvas></div>
+        <div class="table-wrap short"><table id="distTable">
+          <thead><tr><th>District</th><th class="num">Avg modal</th><th class="num">Min</th><th class="num">Max</th>
+            <th class="num">vs state avg</th><th class="num">vs MSP</th><th class="num">Markets</th><th class="num">Below MSP</th></tr></thead>
+          <tbody id="distBody"></tbody></table></div>
+      </div>
+      <div id="distMatrix" hidden>
+        <div class="table-wrap"><table id="matrixTable">
+          <caption class="sr-only">Average modal price by district and commodity. A dash means no data.</caption>
+          <thead id="matrixHead"></thead><tbody id="matrixBody"></tbody></table></div>
+        <p class="muted small">Each cell is the district's most recent day for that commodity; a date in brackets means it did not report on the newest date.</p>
+      </div>
+      <div class="overlay" data-role="loading"><span class="spinner"></span></div>
+    </section>
+
     <!-- Table -->
     <section class="card panel" id="tablePanel" aria-labelledby="tableTitle">
       <div class="card-head">
@@ -152,6 +244,7 @@
   <script src="/static/js/api.js?v=__ASSET_V__"></script>
   <script src="/static/js/charts.js?v=__ASSET_V__"></script>
   <script src="/static/js/panels.js?v=__ASSET_V__"></script>
+  <script src="/static/js/analysis.js?v=__ASSET_V__"></script>
   <script src="/static/js/app.js?v=__ASSET_V__"></script>
   <noscript><p class="wrap">This dashboard needs JavaScript enabled.</p></noscript>
 </body>

@@ -78,3 +78,29 @@ def freshness_status(hours_since: float | None, interval_hours: int) -> str:
     if hours_since <= interval_hours * 4:
         return "delayed"
     return "stale"
+
+
+def market_modal_averages(rows: list[dict]) -> dict[str, float]:
+    """Average modal price per market (a market can report several varieties/grades)."""
+    per_market: dict[str, list[float]] = {}
+    for r in rows:
+        if r.get("modal_price") is not None:
+            per_market.setdefault(r["market"], []).append(r["modal_price"])
+    return {m: mean(v) for m, v in per_market.items()}
+
+
+def msp_compare(price, msp) -> dict:
+    """Compare a price with an MSP (both Rs/quintal). Never divides by zero or invents a value."""
+    if msp is None or price is None or msp == 0:
+        return {"msp": msp, "gap": None, "pct": None, "status": "unavailable"}
+    gap = round(price - msp, 2)
+    status = "above" if gap > 0 else "below" if gap < 0 else "at"
+    return {"msp": msp, "gap": gap, "pct": pct_change(price, msp), "status": status}
+
+
+def index_to_base(value, base, scale: float = 100.0):
+    """Rebase a price so the first observation = 100 (lets commodities with different price
+    levels share one chart). None when either value is missing."""
+    if value is None or base in (None, 0):
+        return None
+    return round(value / base * scale, 2)

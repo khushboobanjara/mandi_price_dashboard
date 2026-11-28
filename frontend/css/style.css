@@ -159,3 +159,18 @@ footer { padding-top: .5rem; }
 @media (max-width: 600px) { .kpi-value { font-size: 1.4rem; } .actions .btn { flex: 1; justify-content: center; } .chart-box.tall { height: 360px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media print { .topbar .actions, .filters, .toasts, .pager, .seg { display: none; } body { background: #fff; } }
+
+/* Five-commodity upgrade */
+.report-pick select { padding: .4rem .5rem; font-size: .85rem; }
+.cmp-table, .table-wrap.short { margin-top: .8rem; }
+.table-wrap.short { max-height: 340px; overflow: auto; }
+tr.sel { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+tr.clickable { cursor: pointer; }
+tr.nodata td { color: var(--muted); font-style: italic; }
+.swatch { display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .45rem; vertical-align: baseline; }
+.swatch.c0 { background: var(--c1); } .swatch.c1 { background: var(--c2); } .swatch.c2 { background: var(--c3); }
+.swatch.c3 { background: var(--c4); } .swatch.c4 { background: var(--c5); }
+.pos { color: var(--up); font-weight: 600; } .neg { color: var(--down); font-weight: 600; } .zero { color: var(--flat); }
+.tag { font-size: .7rem; padding: .05rem .4rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); margin-left: .4rem; }
+[hidden] { display: none !important; }
+@media print { .report-pick { display: none; } }

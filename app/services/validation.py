@@ -5,7 +5,10 @@ import hashlib
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-ALLOWED_COMMODITIES = {"wheat": "Wheat", "mustard": "Mustard"}
+from ..commodities import BY_NAME, COMMODITY_NAMES, normalize_commodity
+
+# casefolded canonical name -> canonical name (used to validate ?commodity= query strings)
+ALLOWED_COMMODITIES = {name.casefold(): name for name in COMMODITY_NAMES}
 DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d")
 MISSING_TOKENS = {"", "na", "n/a", "nan", "null", "none", "-", "--"}
 MAX_PRICE = Decimal("1000000")  # Rs/quintal sanity cap; also keeps DECIMAL(10,2) safe
@@ -62,8 +65,13 @@ def make_record_hash(price_date: date, state: str, district: str, market: str,
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
-def validate_record(raw, expected_state: str = "Rajasthan", today: date | None = None):
-    """Return (clean_row_dict, None) or (None, rejection_reason)."""
+def validate_record(raw, expected_state: str = "Rajasthan", today: date | None = None,
+                    expected_commodity: str | None = None):
+    """Return (clean_row_dict, None) or (None, rejection_reason).
+
+    expected_commodity: when given (live refresh), a row that belongs to a different commodity is
+    rejected, so a misbehaving API can never mix e.g. Gram Dal or Wheat rows into Gram.
+    """
     if not isinstance(raw, dict):
         return None, "record is not an object"
     today = today or date.today()
@@ -88,9 +96,11 @@ def validate_record(raw, expected_state: str = "Rajasthan", today: date | None =
         return None, "missing market"
 
     commodity_raw = clean_text(raw.get("commodity"))
-    commodity = ALLOWED_COMMODITIES.get(commodity_raw.casefold())
+    commodity = normalize_commodity(commodity_raw)
     if not commodity:
         return None, f"unsupported commodity '{commodity_raw}'"
+    if expected_commodity and commodity != expected_commodity:
+        return None, f"row is for {commodity}, but {expected_commodity} was requested"
 
     variety = clean_text(raw.get("variety"))
     grade = clean_text(raw.get("grade"))
@@ -105,6 +115,11 @@ def validate_record(raw, expected_state: str = "Rajasthan", today: date | None =
         return None, "no prices present"
     if min_p is not None and max_p is not None and min_p > max_p:
         return None, f"min_price {min_p} greater than max_price {max_p}"
+    spec = BY_NAME[commodity]
+    for field, value in (("min_price", min_p), ("max_price", max_p), ("modal_price", modal_p)):
+        if value is not None and not (spec.price_floor <= value <= spec.price_ceiling):
+            return None, (f"{field} {value} is outside the plausible {commodity} range "
+                          f"({spec.price_floor}-{spec.price_ceiling} Rs/quintal; possible unit error)")
 
     row = {
         "price_date": price_date, "state": state,

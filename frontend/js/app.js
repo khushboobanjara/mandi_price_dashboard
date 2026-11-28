@@ -5,6 +5,7 @@
 
   var DEFAULTS = { commodity: "Wheat", district: "", market: "", date_from: "", date_to: "" };
   var KEYS = Object.keys(DEFAULTS);
+  var COMMODITIES = ["Wheat", "Mustard", "Bajra", "Soybean", "Gram"];   // same order as the API
   var POLL_MS = 60 * 1000, TICK_MS = 30 * 1000;
 
   var filters = Object.assign({}, DEFAULTS);
@@ -16,7 +17,7 @@
   function readUrl() {
     var q = new URLSearchParams(location.search), f = Object.assign({}, DEFAULTS);
     KEYS.forEach(function (k) { if (q.has(k)) f[k] = q.get(k); });
-    if (["Wheat", "Mustard"].indexOf(f.commodity) < 0) f.commodity = "Wheat";
+    if (COMMODITIES.indexOf(f.commodity) < 0) f.commodity = "Wheat";
     return f;
   }
   function syncUrl() {
@@ -48,6 +49,7 @@
       if (filters.market && !o.markets.some(function (m) { return m.market === filters.market; })) filters.market = "";
       fillSelect($("#fDistrict"), o.districts.map(function (d) { return { value: d, label: d }; }), filters.district, "All districts");
       fillSelect($("#fMarket"), o.markets.map(function (m) { return { value: m.market, label: m.market + " (" + m.district + ")" }; }), filters.market, "All markets");
+      markCommodities(o);
       var r = o.date_range || {};
       [$("#fFrom"), $("#fTo")].forEach(function (i) { i.min = r.min || ""; i.max = r.max || ""; });
       panels.compare.setDateBounds(r);
@@ -55,6 +57,16 @@
     } catch (e) {
       if (!e.stale) banner("error", "Could not load filter options: " + e.message);
     }
+  }
+
+  /** Label commodities that have no stored data yet, so users know before selecting them. */
+  function markCommodities(o) {
+    var stored = o.commodities || [], labels = {};
+    (o.supported_commodities || []).forEach(function (c) { labels[c.name] = c.label; });
+    [].forEach.call($("#fCommodity").options, function (opt) {
+      var base = labels[opt.value] || opt.textContent.replace(/ \(no data\)$/, "");
+      opt.textContent = stored.indexOf(opt.value) < 0 ? base + " (no data)" : base;
+    });
   }
 
   function renderChips() {
@@ -95,6 +107,7 @@
   function loadPanels() {
     var f = Object.assign({}, filters);
     panels.kpi.load(f); panels.trend.load(f); panels.compare.load(f); panels.table.load(f);
+    panels.cmp.load(f); panels.msp.load(f); panels.dist.load(f);
     if (panels.logs.isOpen()) panels.logs.load();
   }
 
@@ -222,6 +235,17 @@
     finally { b.disabled = false; b.textContent = "⬇ Export CSV"; }
   }
 
+  async function exportReport() {
+    var b = $("#reportBtn"), kind = $("#reportKind").value;
+    b.disabled = true; b.textContent = "Preparing…";
+    try {
+      var name = await A.downloadReport(kind, { commodity: kind === "commodity_summary" ? "" : filters.commodity,
+        district: filters.district, market: filters.market, date_from: filters.date_from, date_to: filters.date_to });
+      U.toast("Downloaded " + name, "ok");
+    } catch (e) { U.toast("Report failed: " + e.message, "error", 7000); }
+    finally { b.disabled = false; b.textContent = "⬇ Report CSV"; }
+  }
+
   /* ------------------------------------------------------------------- init */
   function scrollTo(id) { var n = $(id); n.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); }
 
@@ -245,6 +269,10 @@
       else applyFilters({ district: row.district, market: "" });
     });
     panels.table = P.TablePanel($("#tablePanel"));
+    var pickCommodity = function (c) { applyFilters({ commodity: c }); scrollTo("#kpis"); };
+    panels.cmp = M.analysis.CommodityPanel($("#cmpPanel"), $("#cmpChart"), pickCommodity);
+    panels.msp = M.analysis.MspPanel($("#mspPanel"), $("#mspChart"), $("#mspBreakPanel"), pickCommodity);
+    panels.dist = M.analysis.DistrictPanel($("#distPanel"), $("#distChart"), function (d) { applyFilters({ district: d, market: "" }); scrollTo("main"); });
     panels.logs = P.LogsPanel($("#logsBox"));
 
     $("#fCommodity").addEventListener("change", function () { applyFilters({ commodity: this.value }); });
@@ -256,6 +284,7 @@
     $("#resetBtn").addEventListener("click", function () { applyFilters(Object.assign({}, DEFAULTS)); });
     $("#refreshBtn").addEventListener("click", runRefresh);
     $("#exportBtn").addEventListener("click", exportCsv);
+    $("#reportBtn").addEventListener("click", exportReport);
     $("#logsBox").addEventListener("toggle", function () { if (this.open) panels.logs.load(); });
     $("#themeBtn").addEventListener("click", function () {
       var cur = document.documentElement.getAttribute("data-theme");
@@ -263,6 +292,7 @@
       var next = dark ? "light" : "dark";
       applyTheme(next); U.store("mandi-theme", next);
       panels.trend.render(); panels.compare.render();
+      panels.cmp.render(); panels.msp.render(); panels.dist.render();
     });
     document.addEventListener("visibilitychange", function () { if (!document.hidden) pollStatus(); });
 

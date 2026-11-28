@@ -1,6 +1,6 @@
 # Rajasthan Mandi Price Analysis Dashboard
 
-A data-driven web application for tracking, analyzing, and comparing daily Wheat and Mustard mandi prices across Rajasthan, India.
+A data-driven web application for tracking, analyzing, and comparing daily Wheat, Mustard, Bajra, Soybean and Gram (Chana) mandi prices across Rajasthan, India.
 
 The platform collects mandi price data through an API, stores historical records in MySQL, and presents interactive market insights through a web dashboard.
 
@@ -10,7 +10,7 @@ The Rajasthan Mandi Price Analysis Dashboard helps users understand agricultural
 
 ### Key Features
 
-- **Automated Data Collection:** Fetches Rajasthan Wheat and Mustard mandi prices.
+- **Automated Data Collection:** Fetches Rajasthan Wheat, Mustard, Bajra, Soybean and Gram mandi prices (Rajasthan only; other states are rejected).
 - **MySQL Database:** Stores historical mandi price records.
 - **Duplicate Prevention:** Prevents duplicate price entries.
 - **Automatic Refresh:** Scheduled data collection every 3 hours.
@@ -45,7 +45,7 @@ Mandi price data is retrieved through:
 The provider attributes the underlying data to Agmarknet, published through India's data.gov.in platform.
 
 **Scope:** Rajasthan  
-**Commodities:** Wheat and Mustard  
+**Commodities:** Wheat, Mustard, Bajra, Soybean, Gram (Chana, whole)  
 **Price Unit:** Indian Rupees per quintal (100 kg)
 
 Data availability and freshness depend on the API provider.
@@ -151,6 +151,38 @@ The dashboard is designed to provide:
 - Historical price trends
 - Market-wise and district-wise comparisons
 - Filtered mandi price records
+- Commodity-wise comparison (latest prices, history in ₹ or rebased index)
+- District-wise analysis for one commodity, and a district × commodity matrix
+- MSP comparison: price vs Minimum Support Price per commodity, and which markets/districts are below it
+- CSV reports: commodity summary, district analysis, MSP comparison, price history
+
+Commodities with no data are shown as "no data" (never zero or guessed), and an MSP is shown only when one
+is on record for the price date.
+
+## MSP (Minimum Support Price)
+
+MSP is stored in the `msp_rates` table (created and seeded automatically on startup, or with
+`python -m scripts.init_db`). A price is compared with the MSP of the marketing season its date falls in:
+rabi crops (Wheat, Mustard, Gram) 1 Apr–31 Mar, kharif crops (Bajra, Soybean) 1 Oct–30 Sep.
+Built-in values: RMS 2024-25 to 2027-28 (rabi) and KMS 2025-26, 2026-27 (kharif; Bajra = hybrid, Soybean = yellow).
+When a new MSP is announced, add one row, no code change:
+
+```sql
+INSERT INTO msp_rates (commodity, season, applies_from, applies_to, msp, source)
+VALUES ('Bajra', 'KMS 2027-28', '2027-10-01', '2028-09-30', 0 /* announced value */, 'CCEA approval, <date>');
+```
+
+Rows in the table override the built-in values for the same commodity and season. MSP applies to government
+procurement; mandi prices are shown against it for reference.
+
+## Data accuracy rules
+
+- Rajasthan only; rows for other states are rejected.
+- A row must belong to the commodity that was requested (Gram never receives Gram Dal, Black Gram or Wheat rows).
+- API spellings ("Soyabean", "Bajra(Pearl Millet/Cumbu)", "Bengal Gram(Gram)(Whole)") are stored under one canonical name.
+- Prices outside a wide plausible range per commodity (possible ₹/kg or ₹/ton unit errors) are rejected.
+- Duplicates are prevented by a unique hash of date, state, district, market, commodity, variety and grade.
+- A commodity the API has nothing for is noted in the refresh log without failing the refresh; an API error makes it "partial".
 
 ## API Endpoints
 
@@ -161,7 +193,12 @@ The dashboard is designed to provide:
 | `GET /health` | Full status: database, scheduler, data freshness, version, uptime |
 | `GET /health/live` | Liveness probe (never touches MySQL) |
 | `GET /health/ready` | Readiness probe (503 if MySQL or scheduler is down) |
-| `GET /api/filters`, `/api/kpis`, `/api/trends`, `/api/markets/compare` | Dashboard analytics |
+| `GET /api/filters`, `/api/kpis`, `/api/trends`, `/api/markets/compare` | Dashboard analytics (KPIs and trends now include MSP) |
+| `GET /api/commodities` | The five commodities with data availability |
+| `GET /api/compare/commodities`, `/api/compare/trends` | Cross-commodity comparison and history (ignore the `commodity` filter) |
+| `GET /api/districts/analysis` (needs `commodity`), `/api/districts/matrix` | District-wise analysis |
+| `GET /api/msp`, `/api/msp/breakdown` (needs `commodity`) | MSP comparison |
+| `GET /api/export/report?kind=commodity_summary\|district_analysis\|msp\|history` | CSV reports |
 | `GET /api/prices` | Sortable, paginated price records |
 | `GET /api/export/csv` | CSV export of the current filters |
 | `GET /api/freshness`, `/api/refresh/status`, `/api/fetch-logs` | Data freshness and refresh history |
@@ -174,6 +211,8 @@ Run the test suite:
 ```powershell
 python -m pytest tests -v
 ```
+
+Tests that need no database server run against in-memory SQLite (see `tests/conftest.py`).
 
 ## Future Enhancements
 

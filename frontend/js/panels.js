@@ -63,6 +63,17 @@
         return;
       }
       var hi = s.highest_modal_market, lo = s.lowest_modal_market;
+      var m = k.msp || { available: false };
+      var mspCard;
+      if (m.available && m.pct !== null && m.pct !== undefined) {
+        mspCard = card("MSP (" + m.season + ")", U.fmtPrice(m.msp),
+          "avg modal is " + Math.abs(m.pct).toFixed(2) + "% " + (m.status === "below" ? "below" : m.status === "above" ? "above" : "at") + " MSP",
+          [el("div", { class: "delta " + (m.status === "below" ? "down" : m.status === "above" ? "up" : "flat"),
+                       text: m.markets_below_msp + " of " + m.markets_total + " market(s) below MSP" })]);
+        mspCard.classList.add(m.status === "below" ? "msp-below" : m.status === "above" ? "msp-above" : "msp-at");
+      } else {
+        mspCard = card("MSP", "n/a", m.reason || "MSP not available for this date");
+      }
       var cards = [
         card("Avg modal price", U.fmtPrice(s.avg_modal), "as of " + U.fmtDate(k.latest_date),
           [delta(k.change_vs_previous, "vs " + U.fmtDate(k.previous_date)),
@@ -75,6 +86,7 @@
           hi ? function () { actions.filterMarket(hi.market); } : null, "Click to filter to this market", true),
         card("Lowest modal market", lo ? lo.market : "—", lo ? U.fmtPrice(lo.price) : "", null,
           lo ? function () { actions.filterMarket(lo.market); } : null, "Click to filter to this market", true),
+        mspCard,
       ];
       host.replaceChildren.apply(host, cards);
       if (s.missing_price_rows > 0)
@@ -175,7 +187,7 @@
       sub.textContent = U.fmtDate(data.date) + " · average modal " + U.fmtPrice(data.average_modal) + " · top " + data.rows.length +
         " by modal price" + (view === "modal" ? " · blue/green = at or above average, amber = below" : " · marker = avg modal");
       $("#cHint").textContent = "Click a bar to filter the dashboard to that " + level + ".";
-      chart = C.compare(canvas, null, { rows: data.rows, level: level, view: view, onSelect: function (r) { onSelect(level, r); } });
+      chart = C.compare(canvas, null, { rows: data.rows, level: level, view: view, msp: view === "modal" ? data.msp : null, onSelect: function (r) { onSelect(level, r); } });
     }
 
     async function doLoad(f) {

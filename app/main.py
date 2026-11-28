@@ -16,12 +16,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .config import BASE_DIR, settings
-from .database import check_connection, get_db
+from .commodities import normalize_commodity
+from .database import SessionLocal, check_connection, engine, get_db
 from .models import FetchLog, MandiPrice
 from .routes.dashboard import router as dashboard_router
 from .scheduler import next_run_time, scheduler, start_scheduler, stop_scheduler
 from .services import analytics
 from .services.ingest import is_refresh_running, log_to_dict, run_refresh, utcnow
+from .services.msp import init_reference_data
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("mandi")
@@ -31,7 +33,7 @@ mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
 mimetypes.add_type("image/svg+xml", ".svg")
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 STARTED_AT = time.time()
 FRONTEND_DIR = BASE_DIR / "frontend"
 INDEX_FILE = FRONTEND_DIR / "index.html"
@@ -48,8 +50,10 @@ CSP = (
 async def lifespan(app: FastAPI):
     try:
         check_connection()
+        # Older databases predate the msp_rates table: create + seed it (idempotent).
+        init_reference_data(engine, SessionLocal)
     except Exception:  # noqa: BLE001 - keep the API up so /health can explain the problem
-        logger.exception("MySQL is not reachable at startup")
+        logger.exception("MySQL is not reachable (or MSP reference data could not be prepared) at startup")
     start_scheduler()  # automatic refresh every REFRESH_INTERVAL_HOURS (default 3)
     yield
     stop_scheduler()
@@ -254,7 +258,7 @@ def latest_prices(limit: int = Query(20, ge=1, le=500), commodity: str | None = 
                   db: Session = Depends(get_db)):
     stmt = select(MandiPrice).order_by(MandiPrice.price_date.desc(), MandiPrice.id.desc()).limit(limit)
     if commodity:
-        stmt = stmt.where(MandiPrice.commodity == commodity)
+        stmt = stmt.where(MandiPrice.commodity == (normalize_commodity(commodity) or commodity))
     return [_price_to_dict(p) for p in db.execute(stmt).scalars()]
 
 
